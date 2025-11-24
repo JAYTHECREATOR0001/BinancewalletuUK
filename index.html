@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance Wallet - Full Stack Refactor</title>
+
+    <style>
+        /* CSS Variables for better maintenance */
+        :root {
+            --color-primary: #f5c32c; /* Binance Yellow */
+            --color-success: #1ecb6c; /* Binance Green */
+            --color-danger: #f04444; /* Red */
+            --color-background-dark: #0e0f11;
+            --color-card-dark: #1b1c1f;
+            --color-text-light: #ffffff;
+            --color-text-faded: #a0a0a0;
+            --color-separator: #1a1b1e;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --padding-h: 20px;
+        }
+
+        body {
+            margin: 0;
+            font-family: var(--font-family);
+            background-color: var(--color-background-dark);
+            color: var(--color-text-light);
+        }
+
+        .container {
+            padding: var(--padding-h);
+            max-width: 600px;
+            margin: auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- Global Components --- */
+        .btn {
+            padding: 10px 22px;
+            border-radius: 6px; 
+            font-weight: 700;
+            display: inline-block;
+            margin: 10px 5px 0 0;
+            cursor: pointer;
+            text-align: center;
+            transition: opacity 0.2s;
+            border: none;
+        }
+        .btn:hover { opacity: 0.85; }
+        .btn-primary { background-color: var(--color-primary); color: black; }
+        .btn-success { background-color: var(--color-success); color: black; }
+        .btn-danger { background-color: var(--color-danger); color: white; }
+
+        /* --- Home Section --- */
+        .logo-header {
+            display: block;
+            margin: 0 auto 20px auto;
+        }
+
+        .value-section h1 {
+            font-size: 40px;
+            font-weight: 700;
+        }
+        .value-section p {
+            opacity: 0.7;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+
+        .action-btns {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 15px 0 0 -5px;
+        }
+
+        .watchlist-title {
+            margin-top: 35px;
+            font-size: 22px;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+
+        .coin-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid var(--color-separator);
+            align-items: center;
+            transition: background-color 0.1s ease;
+        }
+
+        .coin-row:hover { background-color: #1c1d21; cursor: pointer; }
+
+        .coin-info { display: flex; align-items: center; }
+
+        .coin-info img {
+            width: 32px;
+            margin-right: 12px;
+            border-radius: 50%;
+        }
+
+        .coin-symbol { opacity: 0.6; font-size: 13px; }
+        .coin-change.red { color: var(--color-danger); font-weight: 600; }
+        .coin-change.green { color: var(--color-success); font-weight: 600; }
+
+        /* --- Modal Base --- */
+        .modal-background {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-background.active { display: flex; }
+
+        .modal {
+            background-color: var(--color-card-dark);
+            padding: 25px;
+            width: 90%;
+            max-width: 420px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .modal-title { font-size: 20px; margin-bottom: 20px; font-weight: 600; }
+
+        /* --- Form Elements --- */
+        .input-group {
+            margin-top: 15px;
+            position: relative;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            background-color: #2a2b2e;
+            border: none;
+            color: var(--color-text-light);
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .input-addon {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--color-text-faded);
+            font-weight: 600;
+        }
+        .input-addon.max-btn {
+            color: var(--color-primary);
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 4px;
+        }
+        
+        /* --- Convert Modal Styles --- */
+        .convert-select {
+            background-color: #2a2b2e;
+            padding: 10px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        .convert-select:hover { opacity: 0.9; }
+        .convert-select img { width: 24px; margin-right: 10px; }
+        .convert-select-info { display: flex; align-items: center; }
+        .convert-select-label { color: var(--color-text-faded); font-size: 12px; text-align: left; }
+        .convert-select-value { font-size: 16px; font-weight: 600; }
+        .exchange-icon {
+            font-size: 20px;
+            color: var(--color-text-faded);
+            margin: 15px auto;
+            display: block;
+        }
+        
+        /* --- Review Modal Styles --- */
+        .review-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 15px;
+            border-bottom: 1px solid var(--color-separator);
+        }
+        .review-row:last-of-type { border-bottom: none; }
+        .review-label { color: var(--color-text-faded); }
+        .review-value.fee { color: var(--color-danger); }
+        .review-value { font-weight: 600; }
+
+        /* --- Utility Classes --- */
+        .spinner {
+            width: 26px;
+            height: 26px;
+            border: 4px solid #ffffff30;
+            border-top-color: var(--color-text-light);
+            border-radius: 50%;
+            margin: 15px auto;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* ===================================================
+        CRITICAL FIX: Toast Styles for reliable animation
+        ===================================================
+        */
+        .binance-toast {
+            position: fixed;
+            bottom: -150px; /* Hidden position */
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2a2b2e; /* Darker background */
+            padding: 16px 20px;
+            border-radius: 18px; /* Softer rounded corners */
+            color: var(--color-text-light);
+            min-width: 320px;
+            max-width: 90%;
+            font-weight: 700;
+            display: flex;
+            flex-direction: column; /* Use column to stack header and body */
+            gap: 5px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4); 
+            opacity: 0;
+            /* CRITICAL: Use transition for smooth slide-up/fade-in */
+            transition: bottom 0.5s ease-out, opacity 0.5s ease-out;
+            z-index: 3000;
+        }
+
+        .binance-toast.show { 
+            bottom: 40px; /* Visible position */
+            opacity: 1;
+        }
+        
+        /* Custom header for the notification */
+        .toast-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        .toast-header .logo-time {
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+        }
+        
+        .toast-header .logo-time img {
+            width: 16px; 
+            height: 16px; 
+            margin-right: 6px;
+            filter: drop-shadow(0 0 1px #f5c32c);
+        }
+
+        .toast-header .time {
+            color: #a0a0a0;
+            font-weight: 400;
+        }
+
+        .toast-body {
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.4;
+        }
+
+        /* Adjusting toast control buttons for the new style */
+        .toast-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: auto;
+        }
+        .toast-controls .show-less, .toast-controls .close-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .toast-controls .close-btn {
+            background: none;
+            font-size: 18px;
+            padding: 0 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <img src="https://cryptologos.cc/logos/binance-coin-bnb-logo.png" 
+         width="90" 
+         class="logo-header">
+
+    <div class="value-section">
+        <p>Est. Total Value 👁</p>
+        <h1 id="balanceAmount">$16,599.48</h1>
+        <p id="usdtBalance" style="opacity: 0.5; font-size: 12px; margin-top: 0;">USDT Available: 0.00 (approx. 0.00 ETH)</p>
+    </div>
+
+    <div class="action-btns">
+        <div class="btn btn-primary" onclick="simulateDeposit()">Deposit</div>
+        <div class="btn btn-success" onclick="openModal('withdrawModal')">Withdraw</div>
+        <div class="btn btn-success" onclick="openModal('convertModal')">Convert</div>
+    </div>
+
+    <div class="watchlist-title">Watchlist • Coin</div>
+    <div id="ethWatchlistRow" class="coin-row">
+        <div class="coin-info">
+            <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="ETH">
+            <div>
+                <div>Ethereum</div>
+                <div class="coin-symbol">ETH</div>
+            </div>
+        </div>
+        <div style="text-align:right;">
+            <div id="ethChange" class="coin-change green">+0.30%</div>
+            <div id="ethAmount">$50.00</div> 
+        </div>
+    </div>
+    <div id="watchlistContainer"></div>
+</div>
+
+<div class="modal-background" id="withdrawModal" onclick="closeModal('withdrawModal')">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-title">Withdraw Crypto</div>
+
+        <div class="input-group">
+            <label class="convert-select-label" style="margin-bottom: 5px; display: block; text-align: left;">Coin</label>
+            <div class="convert-select" onclick="openCoinPicker('withdraw')">
+                <div class="convert-select-info">
+                    <img id="withdrawCoinLogo" src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="BTC">
+                    <div id="withdrawCoinSymbol">BTC</div>
+                </div>
+                <div>></div>
+            </div>
+        </div>
+        
+        <div class="input-group">
+            <input type="number" id="withdrawAmountInput" placeholder="Amount">
+            <div class="input-addon max-btn" onclick="setMaxAmount('withdraw')">MAX</div>
+        </div>
+
+        <div class="input-group">
+            <input type="text" id="withdrawAddressInput" placeholder="Recipient Address">
+            <div class="input-addon">Wallet</div>
+        </div>
+
+        <button class="btn btn-success" style="width: 100%; margin-top: 30px;" onclick="simulateWithdraw()">Withdraw</button>
+    </div>
+</div>
+
+<div class="modal-background" id="convertModal" onclick="closeModal('convertModal')">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-title">Convert Crypto</div>
+
+        <div class="input-group">
+            <label class="convert-select-label" style="margin-bottom: 5px; display: block; text-align: left;">From</label>
+            <div class="convert-select" onclick="openCoinPicker('convert-from')">
+                <div class="convert-select-info">
+                    <img id="convertFromLogo" src="https://cryptologos.cc/logos/tether-usdt-logo.png" alt="USDT">
+                    <div id="convertFromSymbol">USDT</div>
+                </div>
+                <div>></div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <input type="number" id="convertAmountInput" placeholder="Amount (Max: 15000.00)" min="0">
+            <div class="input-addon max-btn" onclick="setMaxAmount('convert')">MAX</div>
+        </div>
+        <p id="convertUSDTBalance" style="color: var(--color-text-faded); font-size: 12px; margin: 5px 0 0 0; text-align: right;">Available: 15000.00 USDT</p>
+
+
+        <div class="exchange-icon">⇩</div>
+        
+        <div class="input-group">
+            <label class="convert-select-label" style="margin-bottom: 5px; display: block; text-align: left;">To</label>
+            <div class="convert-select" onclick="openCoinPicker('convert-to')">
+                <div class="convert-select-info">
+                    <img id="convertToLogo" src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="BTC">
+                    <div id="convertToSymbol">BTC</div>
+                </div>
+                <div>></div>
+            </div>
+        </div>
+        
+        <div id="convertResult" style="margin-top: 20px; font-size: 16px; font-weight: 600; color: var(--color-success);"></div>
+
+        <button class="btn btn-primary" id="convertNowBtn" style="width: 100%; margin-top: 30px;" onclick="simulateConvert()">Convert Now</button>
+    </div>
+</div>
+
+<div class="modal-background" id="coinPickerModal" onclick="closeModal('coinPickerModal')">
+    <div class="modal" onclick="event.stopPropagation()" style="text-align: left; padding: 15px;">
+        <div class="modal-title" style="text-align: center;">Select Coin</div>
+        <input type="text" id="coinSearchInput" onkeyup="filterCoinPicker()" placeholder="Search coin name or symbol">
+        <div id="coinListContainer" style="max-height: 400px; overflow-y: scroll; margin-top: 10px;">
+            </div>
+    </div>
+</div>
+
+<div class="modal-background" id="alertModal" onclick="closeModal('alertModal')">
+    <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-title" id="alertTitle"></div>
+        <p id="alertMessage" style="color: var(--color-text-faded); font-size: 14px; margin-bottom: 20px;"></p>
+        <button class="btn btn-primary" style="width: 100%;" onclick="closeModal('alertModal')">OK</button>
+    </div>
+</div>
+
+<div id="binanceToast" class="binance-toast">
+    <div class="toast-header">
+        <div class="logo-time">
+            <img src="https://cryptologos.cc/logos/binance-coin-bnb-logo.png" alt="Binance Logo">
+            Binance
+        </div>
+        <div class="toast-controls">
+             <span class="time"></span> 
+        </div>
+    </div>
+    <div class="toast-body" id="toastText"></div>
+</div>
+
+<script>
+    // --- Configuration and State Management ---
+    const MOCK_TOTAL_BALANCE = 16599.48;
+    const MOCK_USDT_BALANCE = 15000.00; 
+    
+    // ETH Deposit Simulation Config
+    const ETH_DEPOSIT_USD_AMOUNT = 50.00; 
+    
+    // FEE CONFIGURATION (80 ETH)
+    const FEE_ASSET = "ETH";
+    const FEE_AMOUNT = 80; // This is the amount of ETH required for the fee
+
+    const USDT_PRICE = 1.00;
+    
+    let state = {
+        totalBalance: MOCK_TOTAL_BALANCE,
+        usdtAvailable: MOCK_USDT_BALANCE, 
+        ethAvailable: 0, 
+        selectedCoin: null, 
+        mockRates: {},
+        mockCoins: [],
+        coinPickerTarget: 'convert-to', // Tracks which modal opened the picker
+        withdrawCoin: { symbol: 'BTC', name: 'Bitcoin', logo: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" },
+        convertFromCoin: { symbol: 'USDT', name: 'Tether', logo: "https://cryptologos.cc/logos/tether-usdt-logo.png" },
+        convertToCoin: { symbol: 'BTC', name: 'Bitcoin', logo: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" }
+    };
+
+    // --- Data Generation Function ---
+    function generateMockData(count) {
+        let rates = {};
+        let coins = [];
+
+        // 1. Seed List 
+        const seedData = [
+            { name: "Bitcoin", symbol: "BTC", logo: "https://cryptologos.cc/logos/bitcoin-btc-logo.png", price: 30000 },
+            { name: "Ethereum", symbol: "ETH", logo: "https://cryptologos.cc/logos/ethereum-eth-logo.png", price: 2000 }, 
+            { name: "BNB", symbol: "BNB", logo: "https://cryptologos.cc/logos/binance-coin-bnb-logo.png", price: 400 },
+            { name: "Solana", symbol: "SOL", logo: "https://cryptologos.cc/logos/solana-sol-logo.png", price: 120 },
+            { name: "Cardano", symbol: "ADA", logo: "https://cryptologos.cc/logos/cardano-ada-logo.png", price: 0.35 },
+            { name: "Dogecoin", symbol: "DOGE", logo: "https://cryptologos.cc/logos/dogecoin-doge-logo.png", price: 0.08 },
+            { name: "Polkadot", symbol: "DOT", logo: "https://cryptologos.cc/logos/polkadot-new-dot-logo.png", price: 6.5 },
+            { name: "Ripple", symbol: "XRP", logo: "https://cryptologos.cc/logos/ripple-xrp-logo.png", price: 0.55 },
+            { name: "Chainlink", symbol: "LINK", logo: "https://cryptologos.cc/logos/chainlink-link-logo.png", price: 14.00 },
+            { name: "Polygon", symbol: "MATIC", logo: "https://cryptologos.cc/logos/polygon-matic-logo.png", price: 0.85 },
+            { name: "Stellar", symbol: "XLM", logo: "https://cryptologos.cc/logos/stellar-xlm-logo.png", price: 0.12 },
+            { name: "Litecoin", symbol: "LTC", logo: "https://cryptologos.cc/logos/litecoin-ltc-logo.png", price: 70 },
+            { name: "Avalanche", symbol: "AVAX", logo: "https://cryptologos.cc/logos/avalanche-avax-logo.png", price: 35 },
+            { name: "Cosmos", symbol: "ATOM", logo: "https://cryptologos.cc/logos/cosmos-atom.png", price: 9.5 },
+            { name: "Near Protocol", symbol: "NEAR", logo: "https://cryptologos.cc/logos/near-protocol-near-logo.png", price: 3.2 },
+            { name: "Tron", symbol: "TRX", logo: "https://cryptologos.cc/logos/tron-trx-logo.png", price: 0.09 },
+            { name: "Filecoin", symbol: "FIL", logo: "https://cryptologos.cc/logos/filecoin-fil-logo.png", price: 5.8 },
+            { name: "Monero", symbol: "XMR", logo: "https://cryptologos.cc/logos/monero-xmr-logo.png", price: 150 },
+            { name: "Dash", symbol: "DASH", logo: "https://cryptologos.cc/logos/dash-dash-logo.png", price: 40 },
+            { name: "VeChain", symbol: "VET", logo: "https://cryptologos.cc/logos/vechain-vet-logo.png", price: 0.025 },
+            { name: "Tether", symbol: "USDT", logo: "https://cryptologos.cc/logos/tether-usdt-logo.png", price: 1.00 }
+        ];
+
+        seedData.forEach(item => {
+            coins.push({ name: item.name, symbol: item.symbol, logo: item.logo });
+            rates[item.symbol] = item.price;
+        });
+
+        // 2. Generate Remaining Generic Tokens
+        const currentCount = coins.length;
+        const remaining = count - currentCount;
+
+        for (let i = 1; i <= remaining; i++) {
+            const index = currentCount + i;
+            const symbol = `T${index}`;
+            const name = `Generic Token ${index}`;
+            const price = parseFloat((Math.random() * 99.99 + 0.01).toFixed(4));
+            
+            coins.push({ 
+                name: name, 
+                symbol: symbol, 
+                logo: `https://via.placeholder.com/32/cccccc?text=${symbol.charAt(0)}` 
+            });
+            rates[symbol] = price;
+        }
+
+        return { mockCoins: coins, mockRates: rates };
+    }
+
+    const { mockCoins, mockRates } = generateMockData(100);
+    state.mockCoins = mockCoins;
+    state.mockRates = mockRates;
+    
+    // Calculate initial ETH holding for the $50 in the original HTML
+    const ETH_PRICE_MOCK = state.mockRates['ETH'];
+    state.ethAvailable = 50.00 / ETH_PRICE_MOCK; 
+
+    // --- DOM Utility Functions ---
+    const getEl = id => document.getElementById(id);
+
+    function formatCurrency(amount) {
+        return "$" + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    
+    function formatCrypto(amount, symbol) {
+        const maxDecimals = (symbol === 'ETH' || symbol === 'USDT') ? 4 : 8; 
+        return parseFloat(amount).toLocaleString(undefined, { maximumFractionDigits: maxDecimals }) + " " + symbol;
+    }
+
+    // --- Modal Management ---
+    function openModal(id) {
+        getEl(id).classList.add('active');
+    }
+
+    function closeModal(id) {
+        getEl(id).classList.remove('active');
+    }
+
+    // --- Coin Picker Logic (Used by Withdraw and Convert) ---
+
+    function openCoinPicker(target) {
+        state.coinPickerTarget = target;
+        renderCoinPicker();
+        openModal('coinPickerModal');
+    }
+    
+    function renderCoinPicker(filterText = "") {
+        const container = getEl("coinListContainer");
+        container.innerHTML = "";
+        const lowerFilter = filterText.toLowerCase();
+
+        state.mockCoins
+            .filter(c => 
+                c.symbol.toLowerCase().includes(lowerFilter) || 
+                c.name.toLowerCase().includes(lowerFilter)
+            )
+            .forEach(c => {
+                let div = document.createElement("div");
+                div.className = "coin-row";
+                div.setAttribute('onclick', `selectCoin('${c.symbol}')`);
+                div.innerHTML = `
+                    <div class="coin-info">
+                        <img src="${c.logo}" alt="${c.symbol}">
+                        <div>
+                            <div>${c.name}</div>
+                            <div class="coin-symbol">${c.symbol}</div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+    }
+
+    function filterCoinPicker() {
+        const filterText = getEl("coinSearchInput").value;
+        renderCoinPicker(filterText);
+    }
+
+    function selectCoin(symbol) {
+        const selected = state.mockCoins.find(c => c.symbol === symbol);
+        if (!selected) return;
+
+        switch(state.coinPickerTarget) {
+            case 'withdraw':
+                state.withdrawCoin = selected;
+                getEl('withdrawCoinLogo').src = selected.logo;
+                getEl('withdrawCoinSymbol').innerText = selected.symbol;
+                break;
+            case 'convert-from':
+                state.convertFromCoin = selected;
+                getEl('convertFromLogo').src = selected.logo;
+                getEl('convertFromSymbol').innerText = selected.symbol;
+                break;
+            case 'convert-to':
+                state.convertToCoin = selected;
+                getEl('convertToLogo').src = selected.logo;
+                getEl('convertToSymbol').innerText = selected.symbol;
+                calculateConvertResult();
+                break;
+        }
+
+        closeModal('coinPickerModal');
+    }
+
+    // --- UI Update and Simulation Logic ---
+
+    function updateUI(newBalance) {
+        const ethPrice = state.mockRates['ETH'] || 2000; 
+        
+        // Calculate the total ETH equivalent of all available funds (Mock: just USDT and ETH)
+        const ethTotalEquivalent = (state.usdtAvailable / ethPrice) + state.ethAvailable;
+
+        state.totalBalance = newBalance !== undefined ? newBalance : state.totalBalance;
+        
+        getEl("balanceAmount").innerText = formatCurrency(state.totalBalance);
+        getEl("usdtBalance").innerText = `USDT Available: ${formatCrypto(state.usdtAvailable, 'USDT')} (approx. ${formatCrypto(ethTotalEquivalent, 'ETH')})`;
+        
+        // Update modal balance displays
+        if (getEl("convertUSDTBalance")) {
+             getEl("convertUSDTBalance").innerText = `Available: ${state.usdtAvailable.toFixed(2)} USDT`;
+             getEl("convertAmountInput").placeholder = `Amount (Max: ${state.usdtAvailable.toFixed(2)})`;
+        }
+        
+        if (getEl("ethAmount")) {
+            getEl("ethAmount").innerText = formatCurrency(state.ethAvailable * ethPrice);
+        }
+    }
+
+    // Deposit Logic (User asked to show all available token addresses)
+    function simulateDeposit() {
+        const availableCoins = state.mockCoins.slice(0, 5); // Show top 5 for simplicity
+        let depositList = "Please select a token to generate a deposit address:\n\n";
+        
+        // Randomly generate mock addresses
+        availableCoins.forEach(c => {
+            const mockAddress = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            depositList += `${c.symbol} (${c.name}):\n  ${mockAddress}\n\n`;
+        });
+        
+        showAlert("Deposit Addresses", depositList, "Deposit");
+    }
+
+    // Withdraw Logic (User asked for an error 404)
+    function simulateWithdraw() {
+        const amount = parseFloat(getEl('withdrawAmountInput').value);
+        const address = getEl('withdrawAddressInput').value.trim();
+
+        if (isNaN(amount) || amount <= 0) {
+            showAlert("Error", "Please enter a valid withdrawal amount.", "OK");
+            return;
+        }
+
+        if (address.length < 10) {
+            showAlert("Error", "Please provide a valid recipient address.", "OK");
+            return;
+        }
+
+        // Simulating the transaction failure as requested
+        const coinSymbol = state.withdrawCoin.symbol;
+        showAlert(
+            "Withdrawal Failed", 
+            `Error 404: The withdrawal of ${formatCrypto(amount, coinSymbol)} to ${address.substring(0, 10)}... could not be processed at this time.`,
+            "Try Again"
+        );
+        closeModal('withdrawModal');
+    }
+
+    // Convert Logic (User asked for an ETH fee error)
+    async function simulateConvert() {
+        const amount = parseFloat(getEl('convertAmountInput').value);
+        const fromSymbol = state.convertFromCoin.symbol;
+        const toSymbol = state.convertToCoin.symbol;
+        const convertBtn = getEl('convertNowBtn');
+        const convertResult = getEl('convertResult');
+
+        if (isNaN(amount) || amount <= 0 || fromSymbol !== 'USDT') {
+             showAlert("Error", "Please enter a valid amount and ensure conversion is from USDT.", "OK");
+             return;
+        }
+        if (amount > state.usdtAvailable) {
+             showAlert("Error", "Insufficient USDT balance.", "OK");
+             return;
+        }
+        if (fromSymbol === toSymbol) {
+             showAlert("Error", "Cannot convert a coin to itself.", "OK");
+             return;
+        }
+
+        // 1. Show spinner and simulation text
+        convertResult.innerHTML = `<div class="spinner"></div>`;
+        convertBtn.disabled = true;
+        
+        showToast(`Converting ${formatCrypto(amount, fromSymbol)} to ${toSymbol}. This will only take a second...`);
+        
+        // 2. Wait for simulation
+        await new Promise(resolve => setTimeout(resolve, 2500)); 
+
+        // 3. Show the required fee error (as requested)
+        const feeFiat = FEE_AMOUNT * state.mockRates['ETH'];
+        
+        // Show the toast error
+        showToast(`Transaction Failed: Not enough ${FEE_ASSET} for conversion fees. Top up your balance and try again.`);
+        
+        // Show the persistent error details in the modal
+        convertResult.innerHTML = `
+            <span style="color: var(--color-danger); font-weight: 700;">Transaction Failed</span>
+            <p style="color: var(--color-text-faded); font-size: 14px; margin: 5px 0 0 0;">
+                Required fee: **${FEE_AMOUNT} ${FEE_ASSET}** (~${formatCurrency(feeFiat)})
+            </p>
+        `;
+        
+        // 4. Reset UI
+        convertBtn.disabled = false;
+    }
+    
+    function calculateConvertResult() {
+        const amount = parseFloat(getEl('convertAmountInput').value);
+        const fromSymbol = state.convertFromCoin.symbol;
+        const toSymbol = state.convertToCoin.symbol;
+        const convertResult = getEl('convertResult');
+
+        if (isNaN(amount) || amount <= 0 || fromSymbol !== 'USDT') {
+            convertResult.innerHTML = "";
+            return;
+        }
+
+        const fromPrice = state.mockRates[fromSymbol] || 1;
+        const toPrice = state.mockRates[toSymbol] || 1;
+
+        if (fromPrice === 0 || toPrice === 0) {
+             convertResult.innerHTML = `<span style="color: var(--color-danger);">Invalid Rate</span>`;
+             return;
+        }
+
+        // Calculate amount
+        const amountInUSD = amount * fromPrice;
+        const receivedAmount = amountInUSD / toPrice;
+
+        convertResult.innerHTML = `You will receive: **${formatCrypto(receivedAmount, toSymbol)}**`;
+    }
+    
+    function setMaxAmount(target) {
+        if (target === 'convert') {
+            getEl('convertAmountInput').value = state.usdtAvailable.toFixed(2);
+            calculateConvertResult();
+        } 
+        // Note: Withdraw max is not implemented as we don't track all coin balances
+    }
+
+    // --- Toast Control ---
+    function showToast(msg) {
+      const toast = getEl("binanceToast");
+      const currentTime = new Date();
+      // Format time as HH:MM AM/PM
+      const timeString = currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+      
+      // 1. Update the content
+      getEl("toastText").innerHTML = msg;
+      toast.querySelector('.toast-header .time').innerText = timeString; 
+
+      // 2. CRITICAL: Show the toast by applying the 'show' class
+      toast.classList.add("show");
+      
+      // 3. Set timeout to hide the toast after 4 seconds
+      // We use 4500ms (4.5s) to ensure the message is visible for a standard duration.
+      setTimeout(() => {
+          toast.classList.remove("show");
+      }, 4500); 
+    }
+    
+    // --- Alert Modal ---
+    function showAlert(title, message, btnText = "OK") {
+        getEl('alertTitle').innerText = title;
+        getEl('alertMessage').innerText = message;
+        // In this simple alert, the OK button closes the modal
+        openModal('alertModal');
+    }
+
+
+    // --- Watchlist Rendering and other functions (omitted for brevity) ---
+    function renderWatchlist() {
+        const list = getEl("watchlistContainer");
+        list.innerHTML = "";
+        const displayCoins = state.mockCoins.slice(0, 25); 
+
+        displayCoins.forEach(c => {
+            if (c.symbol === "ETH" || c.symbol === "USDT") return; // Skip ETH and USDT
+            const price = (state.mockRates[c.symbol] || 0) * (Math.random() * 0.005 + 0.997);
+            const change = (Math.random() * 4 - 2).toFixed(2); 
+            const changeClass = change >= 0 ? 'green' : 'red';
+            
+            let div = document.createElement("div");
+            div.className = "coin-row";
+            div.innerHTML = `
+                <div class="coin-info">
+                    <img src="${c.logo}" alt="${c.symbol}">
+                    <div>
+                        <div>${c.name}</div>
+                        <div class="coin-symbol">${c.symbol}</div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="coin-change ${changeClass}">${change}%</div>
+                    <div>${formatCurrency(price)}</div>
+                </div>
+            `;
+            list.appendChild(div);
+        });
+    }
+
+    // --- Event Listeners for Convert Modal Input ---
+    document.addEventListener('DOMContentLoaded', () => {
+        const convertInput = getEl('convertAmountInput');
+        if (convertInput) {
+            // Recalculate result when input changes
+            convertInput.addEventListener('input', calculateConvertResult);
+        }
+    });
+
+    // --- Initialization ---
+    updateUI();
+    renderWatchlist();
+</script>
