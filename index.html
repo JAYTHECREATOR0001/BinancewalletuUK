@@ -305,7 +305,7 @@
     <div class="value-section">
         <p>Est. Total Value 👁</p>
         <h1 id="balanceAmount">$16,599.48</h1>
-        <p id="usdtBalance" style="opacity: 0.5; font-size: 12px; margin-top: 0;">USDT Available: 0.00 (approx. 0.00 ETH)</p>
+        <p id="usdtBalance" style="opacity: 0.5; font-size: 12px; margin-top: 0;">USDT Available: 0.00 (approx. 0.00 BTC)</p>
     </div>
 
     <div class="action-btns">
@@ -315,19 +315,21 @@
     </div>
 
     <div class="watchlist-title">Watchlist • Coin</div>
-    <div id="ethWatchlistRow" class="coin-row">
+    
+    <div id="btcWatchlistRow" class="coin-row">
         <div class="coin-info">
-            <img src="https://cryptologos.cc/logos/ethereum-eth-logo.png" alt="ETH">
+            <img src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="BTC">
             <div>
-                <div>Ethereum</div>
-                <div class="coin-symbol">ETH</div>
+                <div>Bitcoin</div>
+                <div class="coin-symbol">BTC</div>
             </div>
         </div>
         <div style="text-align:right;">
-            <div id="ethChange" class="coin-change green">+0.30%</div>
-            <div id="ethAmount">$50.00</div> 
+            <div id="btcChange" class="coin-change green">+0.00%</div>
+            <div id="btcAmount">$0.00</div> 
         </div>
     </div>
+
     <div id="watchlistContainer"></div>
 </div>
 
@@ -437,22 +439,24 @@
     const MOCK_USDT_BALANCE = 15000.00; 
     
     // ETH Deposit Simulation Config
-    const ETH_DEPOSIT_USD_AMOUNT = 50.00; 
+    // const ETH_DEPOSIT_USD_AMOUNT = 50.00; // Original
     
-    // FEE CONFIGURATION (80 ETH)
+    // FEE CONFIGURATION 
     const FEE_ASSET = "ETH";
-    const FEE_AMOUNT = 80; // This is the amount of ETH required for the fee
+    const FEE_AMOUNT = 80; 
 
     const USDT_PRICE = 1.00;
     
     let state = {
         totalBalance: MOCK_TOTAL_BALANCE,
         usdtAvailable: MOCK_USDT_BALANCE, 
-        ethAvailable: 0, 
+        // 1. Initial ETH balance changed to 80 ETH value
+        ethAvailable: 80, 
+        btcAvailable: 0.0, // NEW: Track BTC balance
         selectedCoin: null, 
         mockRates: {},
         mockCoins: [],
-        coinPickerTarget: 'convert-to', // Tracks which modal opened the picker
+        coinPickerTarget: 'convert-to', 
         withdrawCoin: { symbol: 'BTC', name: 'Bitcoin', logo: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" },
         convertFromCoin: { symbol: 'USDT', name: 'Tether', logo: "https://cryptologos.cc/logos/tether-usdt-logo.png" },
         convertToCoin: { symbol: 'BTC', name: 'Bitcoin', logo: "https://cryptologos.cc/logos/bitcoin-btc-logo.png" }
@@ -518,19 +522,25 @@
     state.mockCoins = mockCoins;
     state.mockRates = mockRates;
     
-    // Calculate initial ETH holding for the $50 in the original HTML
+    // Calculate initial BTC holding (used to maintain the original MOCK_TOTAL_BALANCE)
     const ETH_PRICE_MOCK = state.mockRates['ETH'];
-    state.ethAvailable = 50.00 / ETH_PRICE_MOCK; 
+    const BTC_PRICE_MOCK = state.mockRates['BTC'];
+    
+    // Calculate initial BTC required to make up the total balance after fixing ETH and USDT
+    // Total Value = (USDT * 1) + (ETH * 2000) + (BTC * 30000)
+    // BTC Value = Total - USDT Value - ETH Value
+    const initialBtcValue = MOCK_TOTAL_BALANCE - state.usdtAvailable - (state.ethAvailable * ETH_PRICE_MOCK);
+    state.btcAvailable = initialBtcValue / BTC_PRICE_MOCK; 
 
     // --- DOM Utility Functions ---
     const getEl = id => document.getElementById(id);
 
     function formatCurrency(amount) {
-        return "$" + amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return "$" + parseFloat(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
     
     function formatCrypto(amount, symbol) {
-        const maxDecimals = (symbol === 'ETH' || symbol === 'USDT') ? 4 : 8; 
+        const maxDecimals = (symbol === 'USDT' || symbol === 'ETH') ? 4 : 8; 
         return parseFloat(amount).toLocaleString(undefined, { maximumFractionDigits: maxDecimals }) + " " + symbol;
     }
 
@@ -612,15 +622,20 @@
     // --- UI Update and Simulation Logic ---
 
     function updateUI(newBalance) {
+        const btcPrice = state.mockRates['BTC'] || 30000;
         const ethPrice = state.mockRates['ETH'] || 2000; 
         
-        // Calculate the total ETH equivalent of all available funds (Mock: just USDT and ETH)
-        const ethTotalEquivalent = (state.usdtAvailable / ethPrice) + state.ethAvailable;
+        // Calculate the total BTC equivalent of all available funds
+        const btcTotalEquivalent = (state.usdtAvailable / btcPrice) + (state.ethAvailable * ethPrice / btcPrice) + state.btcAvailable;
 
-        state.totalBalance = newBalance !== undefined ? newBalance : state.totalBalance;
+        // Recalculate Total Balance based on current holdings
+        const currentTotalBalance = (state.usdtAvailable * USDT_PRICE) + (state.ethAvailable * ethPrice) + (state.btcAvailable * btcPrice);
+        state.totalBalance = currentTotalBalance;
         
         getEl("balanceAmount").innerText = formatCurrency(state.totalBalance);
-        getEl("usdtBalance").innerText = `USDT Available: ${formatCrypto(state.usdtAvailable, 'USDT')} (approx. ${formatCrypto(ethTotalEquivalent, 'ETH')})`;
+        
+        // Update the approximate price text to show BTC
+        getEl("usdtBalance").innerText = `USDT Available: ${formatCrypto(state.usdtAvailable, 'USDT')} (approx. ${formatCrypto(btcTotalEquivalent, 'BTC')})`;
         
         // Update modal balance displays
         if (getEl("convertUSDTBalance")) {
@@ -628,8 +643,13 @@
              getEl("convertAmountInput").placeholder = `Amount (Max: ${state.usdtAvailable.toFixed(2)})`;
         }
         
-        if (getEl("ethAmount")) {
-            getEl("ethAmount").innerText = formatCurrency(state.ethAvailable * ethPrice);
+        // Update BTC Watchlist row (per request)
+        if (getEl("btcAmount")) {
+            getEl("btcAmount").innerText = formatCurrency(state.btcAvailable * btcPrice);
+            // Simulate a random small change for the display
+            const btcChangeValue = (Math.random() * 0.5 - 0.25).toFixed(2);
+            getEl("btcChange").innerText = (btcChangeValue >= 0 ? '+' : '') + btcChangeValue + '%';
+            getEl("btcChange").className = "coin-change " + (btcChangeValue >= 0 ? 'green' : 'red');
         }
     }
 
@@ -672,7 +692,7 @@
         closeModal('withdrawModal');
     }
 
-    // Convert Logic (User asked for an ETH fee error)
+    // Convert Logic (User asked for success and balance update)
     async function simulateConvert() {
         const amount = parseFloat(getEl('convertAmountInput').value);
         const fromSymbol = state.convertFromCoin.symbol;
@@ -693,6 +713,12 @@
              return;
         }
 
+        // Calculate final received amount
+        const fromPrice = state.mockRates[fromSymbol] || 1;
+        const toPrice = state.mockRates[toSymbol] || 1;
+        const amountInUSD = amount * fromPrice;
+        const receivedAmount = amountInUSD / toPrice;
+
         // 1. Show spinner and simulation text
         convertResult.innerHTML = `<div class="spinner"></div>`;
         convertBtn.disabled = true;
@@ -702,21 +728,29 @@
         // 2. Wait for simulation
         await new Promise(resolve => setTimeout(resolve, 2500)); 
 
-        // 3. Show the required fee error (as requested)
-        const feeFiat = FEE_AMOUNT * state.mockRates['ETH'];
+        // 3. Update state for successful conversion
+        state.usdtAvailable -= amount;
         
-        // Show the toast error
-        showToast(`Transaction Failed: Not enough ${FEE_ASSET} for conversion fees. Top up your balance and try again.`);
+        // Only update BTC if converting TO BTC, otherwise ignore the new token holding update for simplicity
+        if (toSymbol === 'BTC') {
+            state.btcAvailable += receivedAmount;
+        }
+
+        // 4. Update UI and show success
+        updateUI(); 
         
-        // Show the persistent error details in the modal
+        // Show the persistent success details in the modal
         convertResult.innerHTML = `
-            <span style="color: var(--color-danger); font-weight: 700;">Transaction Failed</span>
+            <span style="color: var(--color-success); font-weight: 700;">Conversion Success!</span>
             <p style="color: var(--color-text-faded); font-size: 14px; margin: 5px 0 0 0;">
-                Required fee: **${FEE_AMOUNT} ${FEE_ASSET}** (~${formatCurrency(feeFiat)})
+                You received: **${formatCrypto(receivedAmount, toSymbol)}**
             </p>
         `;
         
-        // 4. Reset UI
+        // Show the toast success
+        showToast(`✅ Conversion Success: ${formatCrypto(amount, fromSymbol)} converted to ${formatCrypto(receivedAmount, toSymbol)}.`);
+
+        // 5. Reset UI
         convertBtn.disabled = false;
     }
     
@@ -784,14 +818,15 @@
     }
 
 
-    // --- Watchlist Rendering and other functions (omitted for brevity) ---
+    // --- Watchlist Rendering and other functions ---
     function renderWatchlist() {
         const list = getEl("watchlistContainer");
         list.innerHTML = "";
         const displayCoins = state.mockCoins.slice(0, 25); 
 
         displayCoins.forEach(c => {
-            if (c.symbol === "ETH" || c.symbol === "USDT") return; // Skip ETH and USDT
+            if (c.symbol === "BTC" || c.symbol === "USDT") return; // Skip BTC and USDT/ETH
+            
             const price = (state.mockRates[c.symbol] || 0) * (Math.random() * 0.005 + 0.997);
             const change = (Math.random() * 4 - 2).toFixed(2); 
             const changeClass = change >= 0 ? 'green' : 'red';
