@@ -204,7 +204,7 @@
             margin: 15px auto;
             animation: spin 1s linear infinite;
         }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+        @keyframes spin { 100% { transform: rotate(360 डिग्री); } }
 
         /* ===================================================
         CRITICAL FIX: Toast Styles for reliable animation
@@ -291,6 +291,21 @@
             font-size: 18px;
             padding: 0 4px;
         }
+
+        /* NEW: Styles for the withdrawal simulation */
+        .withdrawal-simulation {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .withdrawal-simulation p {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0;
+            color: var(--color-text-faded);
+        }
     </style>
 </head>
 
@@ -335,30 +350,37 @@
 
 <div class="modal-background" id="withdrawModal" onclick="closeModal('withdrawModal')">
     <div class="modal" onclick="event.stopPropagation()">
-        <div class="modal-title">Withdraw Crypto</div>
+        <div class="modal-title" id="withdrawModalTitle">Withdraw Crypto</div>
 
-        <div class="input-group">
-            <label class="convert-select-label" style="margin-bottom: 5px; display: block; text-align: left;">Coin</label>
-            <div class="convert-select" onclick="openCoinPicker('withdraw')">
-                <div class="convert-select-info">
-                    <img id="withdrawCoinLogo" src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="BTC">
-                    <div id="withdrawCoinSymbol">BTC</div>
+        <div id="withdrawFormContent">
+            <div class="input-group">
+                <label class="convert-select-label" style="margin-bottom: 5px; display: block; text-align: left;">Coin</label>
+                <div class="convert-select" onclick="openCoinPicker('withdraw')">
+                    <div class="convert-select-info">
+                        <img id="withdrawCoinLogo" src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="BTC">
+                        <div id="withdrawCoinSymbol">BTC</div>
+                    </div>
+                    <div>></div>
                 </div>
-                <div>></div>
             </div>
+            
+            <div class="input-group">
+                <input type="number" id="withdrawAmountInput" placeholder="Amount">
+                <div class="input-addon max-btn" onclick="setMaxAmount('withdraw')">MAX</div>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="withdrawAddressInput" placeholder="Recipient Address">
+                <div class="input-addon">Wallet</div>
+            </div>
+
+            <button class="btn btn-success" id="withdrawBtn" style="width: 100%; margin-top: 30px;" onclick="simulateWithdraw()">Withdraw</button>
         </div>
         
-        <div class="input-group">
-            <input type="number" id="withdrawAmountInput" placeholder="Amount">
-            <div class="input-addon max-btn" onclick="setMaxAmount('withdraw')">MAX</div>
+        <div id="withdrawSimulationContent" class="withdrawal-simulation" style="display: none;">
+            <div class="spinner"></div>
+            <p id="transferMessage"></p>
         </div>
-
-        <div class="input-group">
-            <input type="text" id="withdrawAddressInput" placeholder="Recipient Address">
-            <div class="input-addon">Wallet</div>
-        </div>
-
-        <button class="btn btn-success" style="width: 100%; margin-top: 30px;" onclick="simulateWithdraw()">Withdraw</button>
     </div>
 </div>
 
@@ -438,9 +460,6 @@
     const MOCK_TOTAL_BALANCE = 16599.48;
     const MOCK_USDT_BALANCE = 15000.00; 
     
-    // ETH Deposit Simulation Config
-    // const ETH_DEPOSIT_USD_AMOUNT = 50.00; // Original
-    
     // FEE CONFIGURATION 
     const FEE_ASSET = "ETH";
     const FEE_AMOUNT = 80; 
@@ -450,9 +469,8 @@
     let state = {
         totalBalance: MOCK_TOTAL_BALANCE,
         usdtAvailable: MOCK_USDT_BALANCE, 
-        // 1. Initial ETH balance changed to 80 ETH value
         ethAvailable: 80, 
-        btcAvailable: 0.0, // NEW: Track BTC balance
+        btcAvailable: 0.0, 
         selectedCoin: null, 
         mockRates: {},
         mockCoins: [],
@@ -547,6 +565,11 @@
     // --- Modal Management ---
     function openModal(id) {
         getEl(id).classList.add('active');
+        // Reset Withdraw Modal content when opening
+        if (id === 'withdrawModal') {
+            getEl('withdrawFormContent').style.display = 'block';
+            getEl('withdrawSimulationContent').style.display = 'none';
+        }
     }
 
     function closeModal(id) {
@@ -621,7 +644,7 @@
 
     // --- UI Update and Simulation Logic ---
 
-    function updateUI(newBalance) {
+    function updateUI() {
         const btcPrice = state.mockRates['BTC'] || 30000;
         const ethPrice = state.mockRates['ETH'] || 2000; 
         
@@ -653,6 +676,43 @@
         }
     }
 
+    // NEW: Function to simulate the gradual balance drain
+    function startBalanceDrainSimulation(finalBalance) {
+        const startBalance = state.totalBalance;
+        const duration = 1500; // 1.5 seconds for the drain effect
+        const startTime = performance.now();
+
+        function step(currentTime) {
+            const elapsedTime = currentTime - startTime;
+            const progress = Math.min(1, elapsedTime / duration); // Max 1
+
+            // Easing function (simple linear interpolation)
+            const newBalance = startBalance * (1 - progress); 
+
+            // Update the UI with the smoothly decreasing balance
+            getEl("balanceAmount").innerText = formatCurrency(newBalance);
+
+            if (progress < 1) {
+                requestAnimationFrame(step);
+            } else {
+                // Final update to ensure it hits exactly 0.00
+                state.totalBalance = finalBalance;
+                getEl("balanceAmount").innerText = formatCurrency(finalBalance);
+                
+                // Show success alert after drain finishes
+                setTimeout(() => {
+                    closeModal('withdrawModal');
+                    showAlert("Success", "Crypto Transferred Successfully!", "OK");
+                    
+                    // Reset modal content
+                    getEl('withdrawFormContent').style.display = 'block';
+                    getEl('withdrawSimulationContent').style.display = 'none';
+                }, 100); 
+            }
+        }
+        requestAnimationFrame(step);
+    }
+    
     // Deposit Logic (User asked to show all available token addresses)
     function simulateDeposit() {
         const availableCoins = state.mockCoins.slice(0, 5); // Show top 5 for simplicity
@@ -667,10 +727,13 @@
         showAlert("Deposit Addresses", depositList, "Deposit");
     }
 
-    // Withdraw Logic (User asked for an error 404)
-    function simulateWithdraw() {
+    // MODIFIED: Withdraw Logic (Implementing spinner, toast, and balance drain)
+    async function simulateWithdraw() {
         const amount = parseFloat(getEl('withdrawAmountInput').value);
         const address = getEl('withdrawAddressInput').value.trim();
+        const withdrawBtn = getEl('withdrawBtn');
+
+        if (withdrawBtn.disabled) return; 
 
         if (isNaN(amount) || amount <= 0) {
             showAlert("Error", "Please enter a valid withdrawal amount.", "OK");
@@ -682,14 +745,28 @@
             return;
         }
 
-        // Simulating the transaction failure as requested
-        const coinSymbol = state.withdrawCoin.symbol;
-        showAlert(
-            "Withdrawal Failed", 
-            `Error 404: The withdrawal of ${formatCrypto(amount, coinSymbol)} to ${address.substring(0, 10)}... could not be processed at this time.`,
-            "Try Again"
-        );
-        closeModal('withdrawModal');
+        // 1. Hide form, show spinner, disable button
+        getEl('withdrawFormContent').style.display = 'none';
+        getEl('withdrawSimulationContent').style.display = 'flex';
+        getEl('transferMessage').innerText = `Transferring ${state.withdrawCoin.symbol} to ${address.substring(0, 10)}...`;
+        withdrawBtn.disabled = true;
+
+        // 2. Show "Transferring" toast
+        showToast(`Transferring Crypto to ${address.substring(0, 10)}...`);
+
+        // 3. Simulate balance clearance (immediately for visual effect)
+        // We set the state balances to zero immediately to prepare for the drain simulation,
+        // and also for the final correct state of the wallet.
+        const originalTotalBalance = state.totalBalance;
+        state.usdtAvailable = 0;
+        state.ethAvailable = 0;
+        state.btcAvailable = 0;
+        
+        // Wait briefly before starting the drain to allow the toast/modal to show
+        await new Promise(resolve => setTimeout(resolve, 500)); 
+
+        // 4. Start the visual drain animation on the main balance display
+        startBalanceDrainSimulation(0.00); 
     }
 
     // Convert Logic (User asked for success and balance update)
